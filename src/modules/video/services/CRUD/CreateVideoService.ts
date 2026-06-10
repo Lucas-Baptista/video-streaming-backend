@@ -1,4 +1,4 @@
-import { CreateVideoDTO } from "../../dto/CreateVideoDTO";
+import { CreateVideoDTO } from "../../dto/CRUD/CreateVideoDTO";
 import Video from "../../entities/Video";
 import IVideoRepository from "../../repositories/IVideoRepository";
 
