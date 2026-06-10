@@ -3,6 +3,7 @@ import CreateVideoController from "../controllers/CRUD/CreateVideoController";
 import ListVideoController from "../controllers/CRUD/ListVideoController";
 import ListAllVideosController from "../controllers/CRUD/ListAllVideosController";
 import UpdateVideoController from "../controllers/CRUD/UpdateVideoController";
+import DeleteVideoController from "../controllers/CRUD/DeleteVideoController";
 
 const videoRoutes = Router();
 
@@ -11,16 +12,17 @@ const createVideoController = new CreateVideoController();
 videoRoutes.post('/', createVideoController.index);
 
 //READ
-const listVideoController = new ListVideoController()
-const listAllVideosController = new ListAllVideosController()
+const listVideoController = new ListVideoController();
+const listAllVideosController = new ListAllVideosController();
 videoRoutes.get('/', listAllVideosController.index);
 videoRoutes.get('/:id', listVideoController.index);
 
 // //UPDATE
-const updateVideoController = new UpdateVideoController()
+const updateVideoController = new UpdateVideoController();
 videoRoutes.patch('/:id', updateVideoController.index);
 
-// //DELETE
-// videoRoutes.patch('/:id', );
+//DELETE
+const deleteVideoController = new DeleteVideoController();
+videoRoutes.delete('/:id', deleteVideoController.index);
 
 export default videoRoutes

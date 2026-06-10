@@ -4,7 +4,7 @@ import AppDataSource from '../../../../../shared/infra/typeorm/data-source';
 import Video from '../../../entities/Video';
 import VideoStatus from '../../../entities/VideoStatus';
 import IVideoRepository from '../../../repositories/IVideoRepository';
-import { CreateVideoDTO } from '../../../dto/CreateVideoDTO';
+import { CreateVideoDTO } from '../../../dto/CRUD/CreateVideoDTO';
 
 
 export default class VideoRepository implements IVideoRepository {
@@ -19,7 +19,7 @@ export default class VideoRepository implements IVideoRepository {
       title: data.title,
       description: data.description,
       status: VideoStatus.PENDING_UPLOAD,
-      mimeType: data.type,
+      mimeType: data.mimeType,
       size: data.size
     });
 
@@ -51,12 +51,7 @@ export default class VideoRepository implements IVideoRepository {
     return this.ormRepository.save(video);
   }
 
-
-  delete(id: string): Promise<void> {
-    throw new Error('Method not implemented.');
+  async delete(id: string): Promise<void> {
+    await this.ormRepository.delete(id);
   }
-
-
-
-
 }
