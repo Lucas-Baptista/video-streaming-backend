@@ -4,8 +4,11 @@ import ListVideoController from "../controllers/CRUD/ListVideoController";
 import ListAllVideosController from "../controllers/CRUD/ListAllVideosController";
 import UpdateVideoController from "../controllers/CRUD/UpdateVideoController";
 import DeleteVideoController from "../controllers/CRUD/DeleteVideoController";
+import { CreatePresignedURLsController } from "../controllers/multiPartUpload/CreatePresignedURLsController";
 
 const videoRoutes = Router();
+
+//CRUD
 
 //CREATE
 const createVideoController = new CreateVideoController();
@@ -24,5 +27,12 @@ videoRoutes.patch('/:id', updateVideoController.index);
 //DELETE
 const deleteVideoController = new DeleteVideoController();
 videoRoutes.delete('/:id', deleteVideoController.index);
+
+
+//Multipart Upload
+
+//Generate Presigned URLs
+const createPresignedURLsController = new CreatePresignedURLsController();
+videoRoutes.post('/presignedUrls/:id', createPresignedURLsController.index)
 
 export default videoRoutes

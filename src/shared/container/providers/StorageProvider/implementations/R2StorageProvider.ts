@@ -1,6 +1,8 @@
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import CreateMultipartUploadDTO from "../dto/CreateMultipartUploadDTO";
+import { CreatePresignedURLsDTO } from "../dto/CreatePresignedURLsDTO";
 import IStorageProvider from "../models/IStorageProvider";
-import { CreateMultipartUploadCommand, S3Client } from '@aws-sdk/client-s3';
+import { CreateMultipartUploadCommand, S3Client, UploadPartCommand } from '@aws-sdk/client-s3';
 
 
 export default class R2StorageProvider implements IStorageProvider {
@@ -18,7 +20,7 @@ export default class R2StorageProvider implements IStorageProvider {
             },
         });
     }
-    
+
     async createMultipartUpload({ contentType, key }: CreateMultipartUploadDTO): Promise<string> {
         const command = new CreateMultipartUploadCommand({
             Bucket: process.env.R2_BUCKET,
@@ -35,6 +37,27 @@ export default class R2StorageProvider implements IStorageProvider {
         }
 
         return UploadId;
+    }
+
+    createPresignedURLs({
+        key,
+        uploadId,
+        partNumber,
+    }: CreatePresignedURLsDTO): Promise<string> {
+        const command = new UploadPartCommand({
+            Bucket: process.env.R2_BUCKET,
+            Key: key,
+            UploadId: uploadId,
+            PartNumber: partNumber
+        });
+
+        return getSignedUrl(
+            this.r2Client,
+            command,
+            {
+                expiresIn: 3600,
+            }
+        )
     }
 
 }
