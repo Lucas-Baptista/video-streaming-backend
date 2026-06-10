@@ -2,6 +2,7 @@ import { Router } from "express";
 import CreateVideoController from "../controllers/CRUD/CreateVideoController";
 import ListVideoController from "../controllers/CRUD/ListVideoController";
 import ListAllVideosController from "../controllers/CRUD/ListAllVideosController";
+import UpdateVideoController from "../controllers/CRUD/UpdateVideoController";
 
 const videoRoutes = Router();
 
@@ -16,7 +17,8 @@ videoRoutes.get('/', listAllVideosController.index);
 videoRoutes.get('/:id', listVideoController.index);
 
 // //UPDATE
-// videoRoutes.patch('/:id', );
+const updateVideoController = new UpdateVideoController()
+videoRoutes.patch('/:id', updateVideoController.index);
 
 // //DELETE
 // videoRoutes.patch('/:id', );

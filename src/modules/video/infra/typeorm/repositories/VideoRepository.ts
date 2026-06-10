@@ -36,9 +36,21 @@ export default class VideoRepository implements IVideoRepository {
     return this.ormRepository.find();
   }
 
-  update(id: string, data: Partial<Video>): Promise<Video> {
-    throw new Error('Method not implemented.');
+  async update(
+    id: string,
+    data: Partial<Video>,
+  ): Promise<Video> {
+    const video = await this.findById(id);
+
+    if (!video) {
+      throw new Error('Video not found');
+    }
+
+    Object.assign(video, data);
+
+    return this.ormRepository.save(video);
   }
+
 
   delete(id: string): Promise<void> {
     throw new Error('Method not implemented.');

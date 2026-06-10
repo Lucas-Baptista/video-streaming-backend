@@ -1,14 +1,11 @@
-import { z } from 'zod';
-import { VideoMimeType } from '../../entities/VideoMimeType';
+import z from "zod";
+import { videoSchema } from "../VideoSchema";
 
-export const createVideoSchema = z.object({
-  title: z.string(),
-
-  description: z.string().optional(),
-
-  size: z.string(),
-
-  type: z.enum(VideoMimeType)
+export const createVideoSchema = videoSchema.pick({
+  title: true,
+  description: true,
+  size: true,
+  mimeType: true,
 });
 
 export type CreateVideoDTO = z.infer<
