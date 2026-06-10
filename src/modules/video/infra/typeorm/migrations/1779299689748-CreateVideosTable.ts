@@ -35,8 +35,8 @@ export class CreateVideosTable1781027693328
         "storage_key" text,
         "uploadId" varchar,
 
-        "processedStorageKey" varchar,
-        "manifestUrl" varchar,
+        "processed_storage_key" varchar,
+        "manifest_url" varchar,
 
         "created_at" TIMESTAMP NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP NOT NULL DEFAULT now(),
