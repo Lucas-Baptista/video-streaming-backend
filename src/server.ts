@@ -1,17 +1,18 @@
-import express from 'express';
 import 'dotenv/config';
+import 'reflect-metadata';
+import app from './shared/infra/http/app';
+import AppDataSource from './shared/infra/typeorm/data-source';
 
-const app = express();
 const PORT = 3000;
 
-app.use(express.json());
-
-app.get('/', (req, res) => {
-  res.send('Hello, World!');
+AppDataSource.initialize()
+  .then(() => {
+    console.log('Database connected');
+    app.listen(PORT, () => {
+      console.log('Server running');
+    });
+  })
+  .catch ((error) => {
+  console.error('Database connection error', error);
 });
 
-app.listen(PORT, () => {
-  console.log(
-    'Servidor rodando em http://localhost:3000 🚀',
-  );
-});
