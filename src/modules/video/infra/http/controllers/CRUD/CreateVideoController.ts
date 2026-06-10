@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { videoRepository } from '../../../../../../shared/container';
+import { storageProvider, videoRepository } from '../../../../../../shared/container';
 import CreateVideoService from '../../../../services/CRUD/CreateVideoService';
 import { createVideoSchema } from '../../../../dto/CRUD/CreateVideoDTO';
 
@@ -9,7 +9,7 @@ export default class CreateVideoController {
             request.body,
         );
 
-        const createVideoService = new CreateVideoService(videoRepository);
+        const createVideoService = new CreateVideoService(videoRepository, storageProvider);
 
         const video = await createVideoService.execute(videoMetaData);
 
