@@ -2,7 +2,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import CreateMultipartUploadDTO from "../dto/CreateMultipartUploadDTO";
 import { CreatePresignedURLsDTO } from "../dto/CreatePresignedURLsDTO";
 import IStorageProvider from "../models/IStorageProvider";
-import { AbortMultipartUploadCommand, CompleteMultipartUploadCommand, CreateMultipartUploadCommand, ListMultipartUploadsCommand, S3Client, UploadPartCommand } from '@aws-sdk/client-s3';
+import { AbortMultipartUploadCommand, CompleteMultipartUploadCommand, CreateMultipartUploadCommand, DeleteObjectCommand, ListMultipartUploadsCommand, S3Client, UploadPartCommand } from '@aws-sdk/client-s3';
 import { UploadedPartDTO } from "../../../../../modules/video/dto/multipartUpload/CompleteMultipartUploadDTO";
 
 
@@ -20,7 +20,7 @@ export default class R2StorageProvider implements IStorageProvider {
                 secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
             },
         });
-        
+
     }
 
     async createMultipartUpload({ contentType, key }: CreateMultipartUploadDTO): Promise<string> {
@@ -87,6 +87,23 @@ export default class R2StorageProvider implements IStorageProvider {
         })
 
         await this.r2Client.send(command);
+    }
+
+    async deleteVideoAssets(videoId: string) {
+        const keys = [
+            `videos/${videoId}/original`,
+        ];
+
+        await Promise.all(
+            keys.map(key =>
+                this.r2Client.send(
+                    new DeleteObjectCommand({
+                        Bucket: process.env.R2_BUCKET,
+                        Key: key,
+                    }),
+                ),
+            ),
+        );
     }
 
 }

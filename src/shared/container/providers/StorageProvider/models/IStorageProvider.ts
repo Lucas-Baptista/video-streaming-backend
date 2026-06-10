@@ -21,4 +21,6 @@ export default interface IStorageProvider {
         key: string,
         uploadId: string,
     ): Promise<void>;
+
+    deleteVideoAssets(key: string): Promise<void>;
 }

@@ -12,8 +12,7 @@ export default class CreateVideoService {
     async execute(data: CreateVideoDTO): Promise<Video> {
         const video = await this.videoRepository.create(data);
 
-        const extension = data.mimeType.split('/').pop();
-        const storageKey = `videos/${video.id}/original.${extension}`
+        const storageKey = `videos/${video.id}/original`
         const uploadId = await this.storageProvider.createMultipartUpload({
             key: storageKey,
             contentType: video.mimeType
