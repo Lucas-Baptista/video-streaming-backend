@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import VideoMimeType from '../entities/VideoMimeType';
+import { VideoMimeType } from '../../entities/VideoMimeType';
 
 export const createVideoSchema = z.object({
   title: z.string(),

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import { createVideoSchema } from '../../../dto/CreateVideoDTO';
-import { videoRepository } from '../../../../../shared/container';
-import CreateVideoService from '../../../services/CRUD/CreateVideoService';
+import { videoRepository } from '../../../../../../shared/container';
+import CreateVideoService from '../../../../services/CRUD/CreateVideoService';
+import { createVideoSchema } from '../../../../dto/CRUD/CreateVideoDTO';
 
 export default class CreateVideoController {
     async index(request: Request, response: Response) {
