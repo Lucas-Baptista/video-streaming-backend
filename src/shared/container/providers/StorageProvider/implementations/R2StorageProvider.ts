@@ -2,7 +2,8 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import CreateMultipartUploadDTO from "../dto/CreateMultipartUploadDTO";
 import { CreatePresignedURLsDTO } from "../dto/CreatePresignedURLsDTO";
 import IStorageProvider from "../models/IStorageProvider";
-import { CreateMultipartUploadCommand, S3Client, UploadPartCommand } from '@aws-sdk/client-s3';
+import { AbortMultipartUploadCommand, CompleteMultipartUploadCommand, CreateMultipartUploadCommand, ListMultipartUploadsCommand, S3Client, UploadPartCommand } from '@aws-sdk/client-s3';
+import { UploadedPartDTO } from "../../../../../modules/video/dto/multipartUpload/CompleteMultipartUploadDTO";
 
 
 export default class R2StorageProvider implements IStorageProvider {
@@ -19,6 +20,7 @@ export default class R2StorageProvider implements IStorageProvider {
                 secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
             },
         });
+        
     }
 
     async createMultipartUpload({ contentType, key }: CreateMultipartUploadDTO): Promise<string> {
@@ -58,6 +60,33 @@ export default class R2StorageProvider implements IStorageProvider {
                 expiresIn: 3600,
             }
         )
+    }
+
+    async completeMultipartUpload(key: string, uploadId: string, parts: UploadedPartDTO[]): Promise<void> {
+        const command =
+            new CompleteMultipartUploadCommand({
+                Bucket: process.env.R2_BUCKET,
+                Key: key,
+                UploadId: uploadId,
+                MultipartUpload: {
+                    Parts: parts.map(part => ({
+                        ETag: part.etag,
+                        PartNumber: part.partNumber,
+                    })),
+                },
+            });
+
+        await this.r2Client.send(command);
+    }
+
+    async abortMultipartUpload(key: string, uploadId: string): Promise<void> {
+        const command = new AbortMultipartUploadCommand({
+            Bucket: process.env.R2_BUCKET,
+            Key: key,
+            UploadId: uploadId,
+        })
+
+        await this.r2Client.send(command);
     }
 
 }
