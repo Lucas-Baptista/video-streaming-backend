@@ -1,11 +1,17 @@
+import { mkdir } from "fs/promises";
 import { videoRepository } from "../../../../shared/container";
 import VideoStatus from "../../entities/VideoStatus";
 import IVideoRepository from "../../repositories/IVideoRepository";
+import IStorageProvider from "../../../../shared/container/providers/StorageProvider/models/IStorageProvider";
+import IVideoProcessingProvider from "../../../../shared/container/providers/VideoProcessingProvider/models/IVideoProcessingProvider ";
+import path from "path";
 
 export default class ProcessVideoService {
     
     constructor(
         private videoRepository: IVideoRepository,
+        private storageProvider: IStorageProvider,
+        private videoProcessingProvider: IVideoProcessingProvider
     ) { }
 
     async execute(videoId: string) {
@@ -15,13 +21,13 @@ export default class ProcessVideoService {
             throw new Error('Video not found');
         }
 
-        console.log('INICIANDO O PROCESSAMENTO DO VIDEO')
+        const tempDir = path.resolve('tmp', videoId);
 
-        await new Promise(resolve =>
-            setTimeout(resolve, 5000),
-        );
+        await mkdir(tempDir, { recursive: true });
 
-        console.log('PROCESSAMENTO DO VIDEO FINALIZADO')
+        const signedUrl = await this.storageProvider.generateDownloadUrl(video.storageKey as string);
+
+        await this.videoProcessingProvider.generateHLS(signedUrl, tempDir)
 
         await videoRepository.update(video.id, { status: VideoStatus.READY });
     }

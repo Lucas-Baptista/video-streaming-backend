@@ -3,13 +3,9 @@ import CreateMultipartUploadDTO from "../dto/CreateMultipartUploadDTO";
 import { CreatePresignedURLsDTO } from "../dto/CreatePresignedURLsDTO";
 
 export default interface IStorageProvider {
-    createMultipartUpload(
-        data: CreateMultipartUploadDTO,
-    ): Promise<string>;
+    createMultipartUpload(data: CreateMultipartUploadDTO): Promise<string>;
 
-    createPresignedURLs(
-        data: CreatePresignedURLsDTO,
-    ): Promise<string>;
+    createPresignedURLs(data: CreatePresignedURLsDTO): Promise<string>;
 
     completeMultipartUpload(
         key: string,
@@ -23,4 +19,6 @@ export default interface IStorageProvider {
     ): Promise<void>;
 
     deleteVideoAssets(key: string): Promise<void>;
+
+    generateDownloadUrl(key: string): Promise<string>;
 }

@@ -41,13 +41,9 @@ export default class CompleteMultipartUploadService {
 
         await this.videoRepository.update(video.id, { status: VideoStatus.PROCESSING });
 
-        console.log('Publicando vídeo', video.id);
-
         await this.queueProvider.publish(
             QUEUES.PROCESS_VIDEO,
             { videoId: video.id },
         );
-
-        console.log('Publicado');
     }
 }
