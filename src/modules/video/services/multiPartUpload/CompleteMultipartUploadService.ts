@@ -1,3 +1,5 @@
+import IQueueProvider from "../../../../shared/container/providers/QueueProvider/models/IQueueProvider";
+import { QUEUES } from "../../../../shared/container/providers/QueueProvider/queues";
 import IStorageProvider from "../../../../shared/container/providers/StorageProvider/models/IStorageProvider";
 import AppError from "../../../../shared/errors/AppError";
 import { CompleteMultipartUploadDTO } from "../../dto/multipartUpload/CompleteMultipartUploadDTO";
@@ -7,7 +9,8 @@ import IVideoRepository from "../../repositories/IVideoRepository";
 export default class CompleteMultipartUploadService {
     constructor(
         private videoRepository: IVideoRepository,
-        private storageProvider: IStorageProvider
+        private storageProvider: IStorageProvider,
+        private queueProvider: IQueueProvider
     ) { }
 
     async execute(
@@ -37,5 +40,14 @@ export default class CompleteMultipartUploadService {
         )
 
         await this.videoRepository.update(video.id, { status: VideoStatus.PROCESSING });
+
+        console.log('Publicando vídeo', video.id);
+
+        await this.queueProvider.publish(
+            QUEUES.PROCESS_VIDEO,
+            { videoId: video.id },
+        );
+
+        console.log('Publicado');
     }
 }

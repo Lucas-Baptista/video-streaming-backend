@@ -2,17 +2,12 @@ import 'dotenv/config';
 import 'reflect-metadata';
 import app from './shared/infra/http/app';
 import AppDataSource from './shared/infra/typeorm/data-source';
+import { queueProvider } from './shared/container';
 
 const PORT = 3000;
 
-AppDataSource.initialize()
-  .then(() => {
-    console.log('Database connected');
-    app.listen(PORT, () => {
-      console.log('Server running');
-    });
-  })
-  .catch ((error) => {
-  console.error('Database connection error', error);
-});
-
+(async () => {
+  await AppDataSource.initialize();
+  await queueProvider.connect();
+  app.listen(PORT, () => console.log('Servidor iniciado 🚀'));
+})();

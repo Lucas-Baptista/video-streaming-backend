@@ -1,4 +1,4 @@
-import { videoRepository, storageProvider } from "../../../../../../shared/container";
+import { videoRepository, storageProvider, queueProvider } from "../../../../../../shared/container";
 import { completeMultipartUploadSchema } from "../../../../dto/multipartUpload/CompleteMultipartUploadDTO";
 import { videoIdParamSchema } from "../../../../dto/params/videoIdParamSchemaDTO";
 import { Request, Response } from "express";
@@ -14,7 +14,8 @@ export default class CompleteMultipartUploadController {
 
         const completeMultipartUploadService = new CompleteMultipartUploadService(
             videoRepository,
-            storageProvider
+            storageProvider,
+            queueProvider
         )
 
         await completeMultipartUploadService.execute(

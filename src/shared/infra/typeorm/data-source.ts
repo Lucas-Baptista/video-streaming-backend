@@ -13,7 +13,7 @@ const AppDataSource = new DataSource({
 
   synchronize: false,
 
-  logging: true,
+  // logging: true,
 
   entities: ['src/modules/**/infra/typeorm/entities/*.ts'],
 
