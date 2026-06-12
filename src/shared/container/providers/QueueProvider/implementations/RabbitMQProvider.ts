@@ -32,28 +32,33 @@ export default class RabbitMQProvider implements IQueueProvider {
       durable: true,
     });
 
-    this.channel.consume(
-      queue,
-      async (msg) => {
-        if (!msg) return;
+    await this.channel.prefetch(1);
 
-        const data = JSON.parse(
-          msg.content.toString(),
+    this.channel.consume(queue, async (msg) => {
+      if (!msg) return;
+
+      const data = JSON.parse(
+        msg.content.toString(),
+      );
+
+      try {
+        console.log('[RABBIT] Mensagem recebida');
+
+        await callback(data);
+
+        this.channel.ack(msg);
+
+        console.log('[RABBIT] ACK enviado');
+      } catch (error) {
+        console.error(error);
+
+        this.channel.nack(
+          msg,
+          false,
+          true,
         );
-
-        try {
-          await callback(data);
-
-          this.channel.ack(msg);
-        } catch (error) {
-          this.channel.nack(
-            msg,
-            false,
-            true,
-          );
-        }
-      },
-    );
+      }
+    });
   }
 
   async publish(

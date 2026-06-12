@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { queueProvider, storageProvider, videoProcessingProvider, videoRepository } from './shared/container';
-import { QUEUES } from './shared/container/providers/QueueProvider/queues';
+import { QUEUES } from './shared/container/providers/QueueProvider/constants/queues';
 import ProcessVideoService from './modules/video/services/processing/ProcessVideoService';
 import AppDataSource from './shared/infra/typeorm/data-source';
 

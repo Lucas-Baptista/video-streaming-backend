@@ -20,7 +20,6 @@ export default class R2StorageProvider implements IStorageProvider {
                 secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
             },
         });
-
     }
 
     async createMultipartUpload({ contentType, key }: CreateMultipartUploadDTO): Promise<string> {
@@ -113,7 +112,7 @@ export default class R2StorageProvider implements IStorageProvider {
                 Key: key,
             });
 
-        return getSignedUrl(
+        return await getSignedUrl(
             this.r2Client,
             command,
             { expiresIn: 3600 }

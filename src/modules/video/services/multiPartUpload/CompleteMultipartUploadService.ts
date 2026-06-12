@@ -1,5 +1,5 @@
 import IQueueProvider from "../../../../shared/container/providers/QueueProvider/models/IQueueProvider";
-import { QUEUES } from "../../../../shared/container/providers/QueueProvider/queues";
+import { QUEUES } from "../../../../shared/container/providers/QueueProvider/constants/queues";
 import IStorageProvider from "../../../../shared/container/providers/StorageProvider/models/IStorageProvider";
 import AppError from "../../../../shared/errors/AppError";
 import { CompleteMultipartUploadDTO } from "../../dto/multipartUpload/CompleteMultipartUploadDTO";
