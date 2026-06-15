@@ -1,9 +1,9 @@
 import { mkdir, writeFile } from "fs/promises";
 import AVAILABLE_VARIANTS from "../constants/variants";
 import IVideoProcessingProvider from "../models/IVideoProcessingProvider ";
-import execAsync from "../utils/execAsync";
+import execAsync from "../../../../utils/execAsync";
 import path from "path";
-import execFFmpeg from "../utils/execAsync";
+import execFFmpeg from "../../../../utils/execAsync";
 
 export interface VideoMetadata {
     width: number;
