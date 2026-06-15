@@ -38,6 +38,7 @@ export default class ProcessVideoService {
             {
                 status: VideoStatus.READY,
                 processedStorageKey: `videos/${video.id}/hls/master.m3u8`,
+                manifestUrl: `${process.env.R2_HLS_BUCKET_PUBLIC_URL}/videos/${video.id}/hls/master.m3u8`
             },
         );
 
