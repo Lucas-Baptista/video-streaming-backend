@@ -1,6 +1,5 @@
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import CreateMultipartUploadDTO from "../dto/CreateMultipartUploadDTO";
-import { CreatePresignedURLsDTO } from "../dto/CreatePresignedURLsDTO";
 import IStorageProvider from "../models/IStorageProvider";
 import {
     AbortMultipartUploadCommand,
@@ -14,6 +13,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { UploadedPartDTO } from "../../../../../modules/video/dto/multipartUpload/CompleteMultipartUploadDTO";
 import { createReadStream } from "fs";
+import { CreateMultipartUploladPresignedURLsDTO } from "../dto/CreatePresignedURLsDTO";
 
 
 export default class R2StorageProvider implements IStorageProvider {
@@ -22,9 +22,7 @@ export default class R2StorageProvider implements IStorageProvider {
     constructor() {
         this.r2Client = new S3Client({
             region: "auto",
-
             endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-
             credentials: {
                 accessKeyId: process.env.R2_ACCESS_KEY_ID!,
                 secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
@@ -34,7 +32,7 @@ export default class R2StorageProvider implements IStorageProvider {
 
     async createMultipartUpload({ contentType, key }: CreateMultipartUploadDTO): Promise<string> {
         const command = new CreateMultipartUploadCommand({
-            Bucket: process.env.R2_BUCKET,
+            Bucket: process.env.R2_ORIGINALS_BUCKET,
             Key: key,
             ContentType: contentType
         });
@@ -50,19 +48,19 @@ export default class R2StorageProvider implements IStorageProvider {
         return UploadId;
     }
 
-    createPresignedURLs({
+    async createMultipartUploladPresignedURLs({
         key,
         uploadId,
         partNumber,
-    }: CreatePresignedURLsDTO): Promise<string> {
+    }: CreateMultipartUploladPresignedURLsDTO): Promise<string> {
         const command = new UploadPartCommand({
-            Bucket: process.env.R2_BUCKET,
+            Bucket: process.env.R2_ORIGINALS_BUCKET,
             Key: key,
             UploadId: uploadId,
             PartNumber: partNumber
         });
 
-        return getSignedUrl(
+        return await getSignedUrl(
             this.r2Client,
             command,
             {
@@ -74,7 +72,7 @@ export default class R2StorageProvider implements IStorageProvider {
     async completeMultipartUpload(key: string, uploadId: string, parts: UploadedPartDTO[]): Promise<void> {
         const command =
             new CompleteMultipartUploadCommand({
-                Bucket: process.env.R2_BUCKET,
+                Bucket: process.env.R2_ORIGINALS_BUCKET,
                 Key: key,
                 UploadId: uploadId,
                 MultipartUpload: {
@@ -90,7 +88,7 @@ export default class R2StorageProvider implements IStorageProvider {
 
     async abortMultipartUpload(key: string, uploadId: string): Promise<void> {
         const command = new AbortMultipartUploadCommand({
-            Bucket: process.env.R2_BUCKET,
+            Bucket: process.env.R2_ORIGINALS_BUCKET,
             Key: key,
             UploadId: uploadId,
         })
@@ -101,12 +99,20 @@ export default class R2StorageProvider implements IStorageProvider {
     async deleteVideoAssets(videoId: string) {
         const prefix = `videos/${videoId}`;
 
-        let continuationToken: string | undefined;
+        // Delete original file
+        const command = new DeleteObjectCommand({
+            Bucket: process.env.R2_ORIGINALS_BUCKET,
+            Key: `${prefix}/original`,
+        });
 
+        await this.r2Client.send(command);
+
+        // Delete HLS files
+        let continuationToken: string | undefined;
         do {
             const response = await this.r2Client.send(
                 new ListObjectsV2Command({
-                    Bucket: process.env.R2_BUCKET,
+                    Bucket: process.env.R2_HLS_BUCKET,
                     Prefix: prefix,
                     ContinuationToken: continuationToken,
                 }),
@@ -120,7 +126,7 @@ export default class R2StorageProvider implements IStorageProvider {
             if (objects.length > 0) {
                 await this.r2Client.send(
                     new DeleteObjectsCommand({
-                        Bucket: process.env.R2_BUCKET,
+                        Bucket: process.env.R2_HLS_BUCKET,
                         Delete: {
                             Objects: objects,
                         },
@@ -133,10 +139,10 @@ export default class R2StorageProvider implements IStorageProvider {
 
     }
 
-    async generateDownloadUrl(key: string): Promise<string> {
+    async generateOriginalVideoDownloadUrl(key: string): Promise<string> {
         const command =
             new GetObjectCommand({
-                Bucket: process.env.R2_BUCKET,
+                Bucket: process.env.R2_ORIGINALS_BUCKET,
                 Key: key,
             });
 
@@ -147,10 +153,10 @@ export default class R2StorageProvider implements IStorageProvider {
         );
     }
 
-    async uploadFile(localPath: string, storageKey: string, contentType?: string): Promise<void> {
+    async uploadHLSFile(localPath: string, storageKey: string, contentType?: string): Promise<void> {
         await this.r2Client.send(
             new PutObjectCommand({
-                Bucket: process.env.R2_BUCKET,
+                Bucket: process.env.R2_HLS_BUCKET,
                 Key: storageKey,
                 Body: createReadStream(localPath),
                 ContentType: contentType

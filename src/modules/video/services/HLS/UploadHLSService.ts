@@ -41,7 +41,7 @@ export default class UploadHLSService {
                             ),
                         );
 
-                    await this.storageProvider.uploadFile(
+                    await this.storageProvider.uploadHLSFile(
                         file,
                         storageKey,
                         getContentType(file),

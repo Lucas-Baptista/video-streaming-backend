@@ -4,9 +4,9 @@ import ListVideoController from "../controllers/CRUD/ListVideoController";
 import ListAllVideosController from "../controllers/CRUD/ListAllVideosController";
 import UpdateVideoController from "../controllers/CRUD/UpdateVideoController";
 import DeleteVideoController from "../controllers/CRUD/DeleteVideoController";
-import { CreatePresignedURLsController } from "../controllers/multiPartUpload/CreatePresignedURLsController";
 import CompleteMultipartUploadController from "../controllers/multiPartUpload/CompleteMultipartUploadController";
 import AbortMultipartUploadController from "../controllers/multiPartUpload/AbortMultipartUploadController";
+import CreateMultipartUploladPresignedURLsController from "../controllers/multiPartUpload/CreateMultipartUploladPresignedURLsController";
 
 const videoRoutes = Router();
 
@@ -34,8 +34,8 @@ videoRoutes.delete('/:id', deleteVideoController.index);
 //Multipart Upload
 
 //Generate Presigned URLs
-const createPresignedURLsController = new CreatePresignedURLsController();
-videoRoutes.post('/presigned-urls/:id', createPresignedURLsController.index);
+const createMultipartUploladPresignedURLsController = new CreateMultipartUploladPresignedURLsController();
+videoRoutes.post('/presigned-urls/:id', createMultipartUploladPresignedURLsController.index);
 
 //Complete Multipart Upload
 const completeMultipartUploadController = new CompleteMultipartUploadController();

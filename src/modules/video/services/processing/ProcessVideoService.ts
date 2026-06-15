@@ -25,7 +25,7 @@ export default class ProcessVideoService {
 
         await mkdir(tempDir, { recursive: true });
 
-        const signedUrl = await this.storageProvider.generateDownloadUrl(video.storageKey as string);
+        const signedUrl = await this.storageProvider.generateOriginalVideoDownloadUrl(video.storageKey as string);
 
         await this.videoProcessingProvider.generateHLS(signedUrl, tempDir);
 
@@ -40,7 +40,7 @@ export default class ProcessVideoService {
                 processedStorageKey: `videos/${video.id}/hls/master.m3u8`,
             },
         );
-        
+
         await rm(
             tempDir,
             {

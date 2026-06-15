@@ -1,11 +1,11 @@
 import { UploadedPartDTO } from "../../../../../modules/video/dto/multipartUpload/CompleteMultipartUploadDTO";
 import CreateMultipartUploadDTO from "../dto/CreateMultipartUploadDTO";
-import { CreatePresignedURLsDTO } from "../dto/CreatePresignedURLsDTO";
+import { CreateMultipartUploladPresignedURLsDTO } from "../dto/CreatePresignedURLsDTO";
 
 export default interface IStorageProvider {
     createMultipartUpload(data: CreateMultipartUploadDTO): Promise<string>;
 
-    createPresignedURLs(data: CreatePresignedURLsDTO): Promise<string>;
+    createMultipartUploladPresignedURLs(data: CreateMultipartUploladPresignedURLsDTO): Promise<string>;
 
     completeMultipartUpload(
         key: string,
@@ -20,9 +20,9 @@ export default interface IStorageProvider {
 
     deleteVideoAssets(key: string): Promise<void>;
 
-    generateDownloadUrl(key: string): Promise<string>;
+    generateOriginalVideoDownloadUrl(key: string): Promise<string>;
 
-    uploadFile(
+    uploadHLSFile(
         localPath: string, 
         storageKey: string, 
         contentType?: string

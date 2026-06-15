@@ -2,9 +2,9 @@ import { Request, Response } from 'express';
 import { videoIdParamSchema } from '../../../../dto/params/videoIdParamSchemaDTO';
 import { creatPresignedUrlschema } from '../../../../dto/multipartUpload/CreatPresignedUrlsDTO';
 import { videoRepository, storageProvider } from '../../../../../../shared/container';
-import CreatePresignedURLsService from '../../../../services/multiPartUpload/CreatePresignedURLsService';
+import CreateMultipartUploladPresignedURLsService from '../../../../services/multiPartUpload/CreateMultipartUploladPresignedURLsService';
 
-export class CreatePresignedURLsController {
+export default class CreateMultipartUploladPresignedURLsController {
     async index(
         request: Request,
         response: Response,
@@ -15,14 +15,14 @@ export class CreatePresignedURLsController {
             request.body,
         );
 
-        const createPresignedURLsService =
-            new CreatePresignedURLsService(
+        const createMultipartUploladPresignedURLsService =
+            new CreateMultipartUploladPresignedURLsService(
                 videoRepository,
                 storageProvider
             );
 
         const uploadParts =
-            await createPresignedURLsService.execute(
+            await createMultipartUploladPresignedURLsService.execute(
                 params.id,
                 body,
             );

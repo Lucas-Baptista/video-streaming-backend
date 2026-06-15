@@ -5,7 +5,7 @@ import { CreatPresignedUrlsResponseDTO } from "../../dto/multipartUpload/CreatPr
 import IVideoRepository from "../../repositories/IVideoRepository";
 
 
-export default class CreatePresignedURLsService {
+export default class CreateMultipartUploladPresignedURLsService {
   constructor(
     private videoRepository: IVideoRepository,
     private storageProvider: IStorageProvider,
@@ -31,7 +31,7 @@ export default class CreatePresignedURLsService {
         { length: data.parts },
         async (_, index) => ({
           partNumber: index + 1,
-          uploadUrl: await this.storageProvider.createPresignedURLs({
+          uploadUrl: await this.storageProvider.createMultipartUploladPresignedURLs({
             key: video.storageKey as string,
             uploadId: video.uploadId,
             partNumber: index + 1
