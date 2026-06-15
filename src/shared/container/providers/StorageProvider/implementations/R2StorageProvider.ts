@@ -2,8 +2,18 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import CreateMultipartUploadDTO from "../dto/CreateMultipartUploadDTO";
 import { CreatePresignedURLsDTO } from "../dto/CreatePresignedURLsDTO";
 import IStorageProvider from "../models/IStorageProvider";
-import { AbortMultipartUploadCommand, CompleteMultipartUploadCommand, CreateMultipartUploadCommand, DeleteObjectCommand, GetObjectCommand, ListMultipartUploadsCommand, S3Client, UploadPartCommand } from '@aws-sdk/client-s3';
+import {
+    AbortMultipartUploadCommand,
+    CompleteMultipartUploadCommand,
+    CreateMultipartUploadCommand,
+    DeleteObjectCommand, DeleteObjectsCommand, GetObjectCommand,
+    ListObjectsV2Command,
+    PutObjectCommand,
+    S3Client,
+    UploadPartCommand
+} from '@aws-sdk/client-s3';
 import { UploadedPartDTO } from "../../../../../modules/video/dto/multipartUpload/CompleteMultipartUploadDTO";
+import { createReadStream } from "fs";
 
 
 export default class R2StorageProvider implements IStorageProvider {
@@ -89,20 +99,38 @@ export default class R2StorageProvider implements IStorageProvider {
     }
 
     async deleteVideoAssets(videoId: string) {
-        const keys = [
-            `videos/${videoId}/original`,
-        ];
+        const prefix = `videos/${videoId}`;
 
-        await Promise.all(
-            keys.map(key =>
-                this.r2Client.send(
-                    new DeleteObjectCommand({
+        let continuationToken: string | undefined;
+
+        do {
+            const response = await this.r2Client.send(
+                new ListObjectsV2Command({
+                    Bucket: process.env.R2_BUCKET,
+                    Prefix: prefix,
+                    ContinuationToken: continuationToken,
+                }),
+            );
+
+            const objects =
+                response.Contents?.map((obj) => ({
+                    Key: obj.Key!,
+                })) ?? [];
+
+            if (objects.length > 0) {
+                await this.r2Client.send(
+                    new DeleteObjectsCommand({
                         Bucket: process.env.R2_BUCKET,
-                        Key: key,
+                        Delete: {
+                            Objects: objects,
+                        },
                     }),
-                ),
-            ),
-        );
+                );
+            }
+
+            continuationToken = response.NextContinuationToken;
+        } while (continuationToken);
+
     }
 
     async generateDownloadUrl(key: string): Promise<string> {
@@ -117,6 +145,17 @@ export default class R2StorageProvider implements IStorageProvider {
             command,
             { expiresIn: 3600 }
         );
+    }
+
+    async uploadFile(localPath: string, storageKey: string, contentType?: string): Promise<void> {
+        await this.r2Client.send(
+            new PutObjectCommand({
+                Bucket: process.env.R2_BUCKET,
+                Key: storageKey,
+                Body: createReadStream(localPath),
+                ContentType: contentType
+            })
+        )
     }
 
 

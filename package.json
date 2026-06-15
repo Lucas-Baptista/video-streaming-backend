@@ -25,6 +25,7 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "p-limit": "^7.3.0",
     "pg": "^8.21.0",
     "reflect-metadata": "^0.2.2",
     "typeorm": "^1.0.0",
