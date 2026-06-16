@@ -1,9 +1,14 @@
-import { mkdir, writeFile } from "fs/promises";
-import AVAILABLE_VARIANTS from "../constants/variants";
-import IVideoProcessingProvider from "../models/IVideoProcessingProvider ";
-import execAsync from "../../../../utils/execAsync";
-import path from "path";
-import execFFmpeg from "../../../../utils/execAsync";
+import {
+    mkdir,
+    rename,
+    unlink,
+} from 'fs/promises';
+import path from 'path';
+import AVAILABLE_VARIANTS from '../constants/variants';
+import IVideoProcessingProvider from '../models/IVideoProcessingProvider ';
+import downloadFile from '../../../../utils/downloadFile';
+import execCommand from '../../../../utils/execCommand';
+import execFFmpeg from '../../../../utils/execFFmpeg';
 
 export interface VideoMetadata {
     width: number;
@@ -17,19 +22,20 @@ export interface Variant {
     resolution: string;
 }
 
-export default class FFMepegVideoProcessingProvider implements IVideoProcessingProvider {
+export default class FFMepegVideoProcessingProvider
+    implements IVideoProcessingProvider {
 
-    private async getMetadata(inputUrl: string): Promise<VideoMetadata> {
+    private async getMetadata(inputPath: string): Promise<VideoMetadata> {
         const command = [
             'ffprobe',
             '-v error',
             '-select_streams v:0',
             '-show_entries stream=width,height',
             '-of csv=s=x:p=0',
-            `"${inputUrl}"`
+            `"${inputPath}"`,
         ].join(' ');
 
-        const { stdout } = await execAsync(command);
+        const { stdout } = await execCommand(command);
 
         const [width, height] = stdout
             .trim()
@@ -42,61 +48,87 @@ export default class FFMepegVideoProcessingProvider implements IVideoProcessingP
         };
     }
 
-    private getAvailableVariants(
-        metadata: VideoMetadata
-    ): Variant[] {
-
+    private getAvailableVariants(metadata: VideoMetadata): Variant[] {
         return AVAILABLE_VARIANTS.filter(
-            variant => variant.height <= metadata.height
+            variant =>
+                variant.height <= metadata.height,
         );
     }
 
-    private async generateVariant(
-        inputUrl: string,
+    private async generateMultiVariantHLS(
+        inputPath: string,
         outputDir: string,
-        variant: Variant
+        variants: Variant[],
     ): Promise<void> {
 
-        const command = [
+        const splitOutputs = variants.map((_, index) => `[v${index}]`).join('');
+
+        const filterParts: string[] = [];
+
+        filterParts.push(
+            `[0:v]split=${variants.length}${splitOutputs}`,
+        );
+
+        variants.forEach((variant, index,) => {
+            filterParts.push(
+                `[v${index}]scale=-2:${variant.height}[out${index}]`,
+            );
+        },
+        );
+
+        const commandParts: string[] = [
             'ffmpeg',
-            `-i "${inputUrl}"`,
-            `-vf "scale=-2:${variant.height}"`,
-            '-c:v libx264',
-            '-preset ultrafast',
-            '-c:a aac',
-            '-hls_time 10',
-            '-hls_playlist_type vod',
-            `-hls_segment_filename "${outputDir}/segment_%03d.ts"`,
-            `"${outputDir}/index.m3u8"`
-        ].join(' ');
-
-        await execFFmpeg(command);
-    }
-
-    private async generateMasterPlaylist(
-        outputDir: string,
-        variants: Variant[]
-    ): Promise<void> {
-
-        const lines: string[] = [
-            '#EXTM3U',
-            ''
+            '-y',
+            `-i "${inputPath}"`,
+            `-filter_complex "${filterParts.join(';')}"`,
         ];
 
-        for (const variant of variants) {
-            lines.push(
-                `#EXT-X-STREAM-INF:BANDWIDTH=${variant.bandwidth},RESOLUTION=${variant.resolution}`
-            );
-            lines.push(
-                `${variant.name}/index.m3u8`
-            );
-            lines.push('');
-        }
+        variants.forEach((variant, index) => {
+            commandParts.push(`-map "[out${index}]"`);
+            commandParts.push('-map 0:a:0');
+            commandParts.push(`-c:v:${index} libx264`);
+            commandParts.push(
+                `-b:v:${index} ${Math.floor(
+                    variant.bandwidth / 1000,
+                )}k`,
+            )
+        });
 
-        await writeFile(
-            path.join(outputDir, 'master.m3u8'),
-            lines.join('\n')
-        );
+        commandParts.push('-c:a aac');
+        commandParts.push('-preset ultrafast');
+        commandParts.push('-f hls');
+        commandParts.push('-hls_time 10');
+        commandParts.push('-hls_playlist_type vod');
+        commandParts.push( '-master_pl_name master.m3u8');
+
+        const varStreamMap = variants.map((_, index) =>`v:${index},a:${index}`).join(' ');
+
+        commandParts.push(`-var_stream_map "${varStreamMap}"`);
+        commandParts.push(`-hls_segment_filename "${outputDir}/%v/segment_%03d.ts"`);
+        commandParts.push(`"${outputDir}/%v/index.m3u8"`);
+        const command = commandParts.join(' ');
+
+        console.log('[FFMPEG] Starting transcoding');
+
+        const progressCommand = `${command} -progress pipe:1 -nostats`;
+
+        await execFFmpeg(progressCommand);
+
+        console.log('[FFMPEG] Finished transcoding');
+    }
+
+    private async renameVariantDirectories(
+        outputDir: string,
+        variants: Variant[],
+    ): Promise<void> {
+
+        for (let index = 0; index < variants.length; index++) {
+            const oldPath = path.join(outputDir, String(index));
+
+            const newPath = path.join(outputDir, variants[index].name);
+
+            await rename(oldPath, newPath);
+        }
     }
 
     async generateHLS(
@@ -104,45 +136,61 @@ export default class FFMepegVideoProcessingProvider implements IVideoProcessingP
         outputDir: string,
     ): Promise<void> {
 
-        const metadata =
-            await this.getMetadata(inputUrl);
+        const startedAt = Date.now();
 
-        const variants =
-            this.getAvailableVariants(metadata);
+        console.log('[HLS] Starting processing');
 
-        console.log(
-            '[HLS] Variants',
-            variants.map(v => v.name)
-        );
+        await mkdir(outputDir, { recursive: true });
 
-        for (const variant of variants) {
-            const variantDir = path.join(
-                outputDir,
-                variant.name
-            );
+        const localVideoPath = path.join(outputDir, 'original.mp4');
 
-            await mkdir(
-                variantDir,
-                { recursive: true }
-            );
+        console.log('[DOWNLOAD] Starting download',);
 
-            console.time(`variant-${variant.name}`);
+        console.time('download');
 
-            await this.generateVariant(
-                inputUrl,
-                variantDir,
-                variant
-            );
+        await downloadFile(inputUrl, localVideoPath);
 
-            console.timeEnd(
-                `variant-${variant.name}`
-            );
+        console.timeEnd('download');
+
+        console.log('[DOWNLOAD] Finished download');
+
+        console.log('[HLS] Reading metadata');
+
+        const metadata = await this.getMetadata(localVideoPath);
+
+        console.log('[HLS] Metadata', metadata);
+
+        const variants = this.getAvailableVariants(metadata);
+
+        console.log('[HLS] Variants', variants.map(v => v.name));
+
+        for (let index = 0; index < variants.length; index++) {
+
+            await mkdir(path.join(outputDir, String(index)), { recursive: true });
         }
 
-        await this.generateMasterPlaylist(
-            outputDir,
-            variants
-        );
-    }
+        console.time('ffmpeg');
 
+        await this.generateMultiVariantHLS(
+            localVideoPath,
+            outputDir,
+            variants,
+        );
+
+        console.log('[HLS] Renaming directories',);
+
+        await this.renameVariantDirectories(outputDir, variants);
+
+        console.log('[HLS] Removing original file');
+
+        await unlink(localVideoPath);
+
+        console.timeEnd('ffmpeg');
+
+        console.log('[HLS] Completed');
+
+        const elapsed = (Date.now() - startedAt) / 1000;
+
+        console.log(`[HLS] Total time: ${Math.round(elapsed)}s`);
+    }
 }
