@@ -1,18 +1,28 @@
 services:
-  cassandra:
-    image: cassandra:5.0
-    container_name: cassandra-db
+  postgres:
+    image: bitnami/postgresql:latest
+    container_name: postgres-db
     ports:
-      - "9042:9042"
+      - "${DB_PORT}:5432"
     environment:
-      CASSANDRA_CLUSTER_NAME: video-streaming-cluster
+      POSTGRESQL_DATABASE: ${DB_NAME}
+      POSTGRESQL_USERNAME: ${DB_USER}
+      POSTGRESQL_PASSWORD: ${DB_PASSWORD}
     volumes:
-      - cassandra_data:/var/lib/cassandra
+      - postgres_data:/bitnami/postgresql
     networks:
-      - cassandra-network
+      - postgres-network
+      
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbit consumer_timeout 7200000"
 
 volumes:
-  cassandra_data:
+  postgres_data:
 
 networks:
-  cassandra-network: 
+  postgres-network:

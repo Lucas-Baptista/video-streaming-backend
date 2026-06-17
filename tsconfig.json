@@ -1,13 +1,17 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "target": "ES2022",
     "module": "CommonJS",
-    "rootDir": "src",
-    "outDir": "dist",
-    "esModuleInterop": true,
     "strict": true,
-    "types": [
-      "vitest/globals"
-    ]
-  }
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "types": ["vitest/globals", "node"]
+  },
+  "include": [
+    "src",
+    "vitest.config.ts"
+  ]
 }
