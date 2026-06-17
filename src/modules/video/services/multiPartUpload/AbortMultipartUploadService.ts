@@ -8,30 +8,34 @@ export default class AbortMultipartUploadService {
         private storageProvider: IStorageProvider,
     ) { }
 
-    async execute(storageKey: string, uploadId: string) {
-        // const video = await this.videoRepository.findById(videoId);
+    async execute(
+        storageKey: string,
+        uploadId: string,
+        videoId: string
+    ) {
+        const video = await this.videoRepository.findById(videoId);
 
-        // if (!video) {
-        //     throw new AppError(
-        //         'Video not found',
-        //         404
-        //     )
-        // }
+        if (!video) {
+            throw new AppError(
+                'Video not found',
+                404
+            )
+        }
 
-        // if (!video.uploadId) {
-        //     throw new AppError(
-        //         'Upload not initialized',
-        //     );
-        // }
+        if (!video.uploadId) {
+            throw new AppError(
+                'Upload not initialized',
+            );
+        }
 
         await this.storageProvider.abortMultipartUpload(
             storageKey,
             uploadId,
         );
 
-        // await this.videoRepository.delete(
-        //     video.id,
-        // );
+        await this.videoRepository.delete(
+            video.id,
+        );
 
     }
 }

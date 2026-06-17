@@ -1,10 +1,12 @@
-import fs from 'fs/promises';
+import fs, { rm } from 'fs/promises';
 import path from 'path';
 import pLimit from 'p-limit';
 
 import IStorageProvider from '../../../../shared/container/providers/StorageProvider/models/IStorageProvider';
 import listFilesRecursively from '../../../../shared/utils/listFilesRecursively';
 import getContentType from '../../../../shared/utils/getContentType';
+import VideoStatus from '../../entities/VideoStatus';
+import IVideoRepository from '../../repositories/IVideoRepository';
 
 interface CheckpointDTO {
     files: string[];
@@ -20,6 +22,7 @@ export default class UploadHLSService {
 
     constructor(
         private storageProvider: IStorageProvider,
+        private videoRepository: IVideoRepository
     ) { }
 
     public async execute(
@@ -27,8 +30,6 @@ export default class UploadHLSService {
         videoId: string,
     ): Promise<void> {
         console.time('[UPLOAD] TOTAL');
-
-        const startedAt = Date.now();
 
         const checkpointPath = path.join(
             localDir,
@@ -40,120 +41,68 @@ export default class UploadHLSService {
             videoId,
         );
 
-        const checkpoint = await this.loadCheckpoint(
-            checkpointPath,
-        );
+        const checkpoint = await this.loadCheckpoint(checkpointPath);
 
-        const uploadedFiles = new Set(
-            checkpoint.files,
-        );
+        const uploadedFiles = new Set(checkpoint.files);
 
-        const allFiles = await listFilesRecursively(
-            tmpVideoDir,
-        );
+        const allFiles = await listFilesRecursively(tmpVideoDir);
 
-        const files = allFiles.filter(
-            file => {
-                const relativePath = path
-                    .relative(
-                        tmpVideoDir,
-                        file,
-                    )
-                    .replaceAll('\\', '/');
+        const files = allFiles.filter(file => {
+            const relativePath = path
+                .relative(tmpVideoDir, file)
+                .replaceAll('\\', '/');
 
-                return !uploadedFiles.has(
-                    relativePath,
-                );
-            },
-        );
+            return !uploadedFiles.has(relativePath);
+        });
 
-        const totalFiles =
-            uploadedFiles.size +
-            files.length;
+        const totalFiles = uploadedFiles.size + files.length;
 
-        let uploaded =
-            uploadedFiles.size;
+        let uploaded = uploadedFiles.size;
 
-        console.log(
-            `[UPLOAD] Retomando upload. ${uploaded}/${totalFiles} já enviados`,
-        );
+        console.log(`${uploaded > 0 ? '[UPLOAD] Retomando upload.' : '[UPLOAD] Iniciando upload.'} ${uploaded}/${totalFiles} já enviados`);
 
-        const limit = pLimit(
-            this.CONCURRENCY,
-        );
+        const limit = pLimit(this.CONCURRENCY);
 
-        let lastCheckpointCount =
-            uploadedFiles.size;
+        let lastCheckpointCount = uploadedFiles.size;
 
         const results = await Promise.allSettled(
-            files.map(
-                file => limit(
-                    async () => {
+            files.map(file => limit(
+                async () => {
+                    const relativePath = path
+                        .relative(tmpVideoDir, file)
+                        .replaceAll('\\', '/');
 
-                        const relativePath = path
-                            .relative(
-                                tmpVideoDir,
-                                file,
-                            )
-                            .replaceAll(
-                                '\\',
-                                '/',
-                            );
+                    const storageKey = path.posix.join(
+                        'videos',
+                        videoId,
+                        'hls',
+                        relativePath,
+                    );
 
-                        const storageKey = path.posix.join(
-                            'videos',
-                            videoId,
-                            'hls',
-                            relativePath,
+                    console.time(`[FILE] ${relativePath}`);
+
+                    await this.uploadWithRetry(file, storageKey);
+
+                    uploadedFiles.add(relativePath,);
+
+                    console.timeEnd(`[FILE] ${relativePath}`)
+
+                    uploaded += 1;
+
+                    if (uploadedFiles.size - lastCheckpointCount >= this.CHECKPOINT_INTERVAL) {
+                        await this.saveCheckpoint(
+                            checkpointPath,
+                            uploadedFiles,
                         );
 
-                        console.time(`[FILE] ${relativePath}`);
+                        lastCheckpointCount = uploadedFiles.size;
+                    }
 
-                        await this.uploadWithRetry(
-                            file,
-                            storageKey,
-                        );
+                    if (uploaded % 10 === 0 || uploaded === totalFiles) {
+                        console.log(`[UPLOAD] ${uploaded}/${totalFiles}`);
+                    }
 
-                        uploadedFiles.add(
-                            relativePath,
-                        );
-
-                        console.timeEnd(
-                            `[FILE] ${relativePath}`,
-                        )
-
-                        uploaded += 1;
-
-                        if (
-                            uploadedFiles.size -
-                            lastCheckpointCount >=
-                            this.CHECKPOINT_INTERVAL
-                        ) {
-
-                            await this.saveCheckpoint(
-                                checkpointPath,
-                                uploadedFiles,
-                            );
-
-                            lastCheckpointCount =
-                                uploadedFiles.size;
-
-                        }
-
-                        if (
-                            uploaded % 10 === 0 ||
-                            uploaded === totalFiles
-                        ) {
-
-                            console.log(
-                                `[UPLOAD] ${uploaded}/${totalFiles}`,
-                            );
-
-                        }
-
-                    },
-                ),
-            ),
+                }))
         );
 
         await this.saveCheckpoint(
@@ -161,70 +110,40 @@ export default class UploadHLSService {
             uploadedFiles,
         );
 
-        const failedFiles = results.filter(
-            result =>
-                result.status === 'rejected',
-        );
-
-        const durationSeconds =
-            (Date.now() - startedAt) / 1000;
-
-        const filesPerSecond =
-            uploaded /
-            Math.max(
-                durationSeconds,
-                1,
-            );
-
-        console.log(
-            `[UPLOAD] Tempo total: ${durationSeconds.toFixed(2)}s`,
-        );
-
-        console.log(
-            `[UPLOAD] Velocidade média: ${filesPerSecond.toFixed(2)} arquivos/s`,
-        );
+        const failedFiles = results.filter(result => result.status === 'rejected');
 
         if (failedFiles.length > 0) {
 
-            console.error(
-                `[UPLOAD] ${failedFiles.length} arquivos falharam`,
-            );
+            console.error(`[UPLOAD] ${failedFiles.length} arquivos falharam`);
 
-            failedFiles.forEach(
-                result => {
+            failedFiles.forEach(result => {
+                if (result.status === 'rejected') {
+                    console.error(result.reason);
+                }
+            });
 
-                    if (
-                        result.status === 'rejected'
-                    ) {
-
-                        console.error(
-                            result.reason,
-                        );
-
-                    }
-
-                },
-            );
-
-            throw new Error(
-                `Upload incompleto. ${failedFiles.length} arquivos falharam.`,
-            );
-
+            throw new Error(`Upload incompleto. ${failedFiles.length} arquivos falharam.`);
         }
 
-        await fs.rm(
-            checkpointPath,
+        await fs.rm(checkpointPath, { force: true });
+
+        await fs.rm(tmpVideoDir, {
+            recursive: true,
+            force: true,
+        });
+
+        await this.videoRepository.update(
+            videoId,
             {
-                force: true,
+                status: VideoStatus.READY,
+                processedStorageKey: `videos/${videoId}/hls/master.m3u8`,
+                manifestUrl: `${process.env.R2_HLS_BUCKET_PUBLIC_URL}/videos/${videoId}/hls/master.m3u8`
             },
         );
 
-        console.log(
-            '[UPLOAD] Finalizado com sucesso',
-        );
+        console.log('[UPLOAD] Finalizado com sucesso');
 
         console.timeEnd('[UPLOAD] TOTAL');
-
     }
 
     private async uploadWithRetry(
@@ -234,12 +153,8 @@ export default class UploadHLSService {
 
         let attempt = 0;
 
-        while (
-            attempt < this.MAX_RETRIES
-        ) {
-
+        while (attempt < this.MAX_RETRIES) {
             try {
-
                 await this.storageProvider.uploadHLSFile(
                     file,
                     storageKey,
@@ -253,34 +168,16 @@ export default class UploadHLSService {
                 attempt += 1;
 
                 const retryable =
-                    error?.code === 'ECONNRESET' ||
-                    error?.name === 'TimeoutError';
+                    error?.code === 'ECONNRESET'
+                    || error?.name === 'TimeoutError';
 
-                console.error(
-                    `[UPLOAD RETRY ${attempt}/${this.MAX_RETRIES}] ${file}`,
-                );
+                console.error(`[UPLOAD RETRY ${attempt}/${this.MAX_RETRIES}] ${file}`);
 
-                if (
-                    !retryable ||
-                    attempt >=
-                    this.MAX_RETRIES
-                ) {
+                if (!retryable || attempt >= this.MAX_RETRIES) throw error;
 
-                    throw error;
+                const delay = attempt * 2000;
 
-                }
-
-                const delay =
-                    attempt * 2000;
-
-                await new Promise(
-                    resolve =>
-                        setTimeout(
-                            resolve,
-                            delay,
-                        ),
-                );
-
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
 
         }
@@ -292,23 +189,10 @@ export default class UploadHLSService {
     ): Promise<CheckpointDTO> {
 
         try {
-
-            const content =
-                await fs.readFile(
-                    checkpointPath,
-                    'utf8',
-                );
-
-            return JSON.parse(
-                content,
-            ) as CheckpointDTO;
-
+            const content = await fs.readFile(checkpointPath, 'utf8');
+            return JSON.parse(content) as CheckpointDTO;
         } catch {
-
-            return {
-                files: [],
-            };
-
+            return { files: [] };
         }
 
     }
@@ -321,11 +205,7 @@ export default class UploadHLSService {
         await fs.writeFile(
             checkpointPath,
             JSON.stringify(
-                {
-                    files: [
-                        ...uploadedFiles,
-                    ],
-                },
+                { files: [...uploadedFiles] },
                 null,
                 2,
             ),

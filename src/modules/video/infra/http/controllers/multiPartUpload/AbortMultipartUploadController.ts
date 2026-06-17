@@ -9,10 +9,10 @@ export default class AbortMultipartUploadController {
     request: Request,
     response: Response,
   ): Promise<Response> {
-    // const params =
-    //   videoIdParamSchema.parse(
-    //     request.params,
-    //   );
+    const params =
+      videoIdParamSchema.parse(
+        request.params,
+      );
 
     const { key, id } = request.body
 
@@ -23,7 +23,7 @@ export default class AbortMultipartUploadController {
       );
 
     await abortMultipartUploadService.execute(
-      key, id
+      key, id, params.id
     );
 
     return response.status(204).send();
