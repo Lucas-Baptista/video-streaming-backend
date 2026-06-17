@@ -1,6 +1,8 @@
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import CreateMultipartUploadDTO from "../dto/CreateMultipartUploadDTO";
 import IStorageProvider from "../models/IStorageProvider";
+import { NodeHttpHandler } from '@smithy/node-http-handler';
+import https from 'https';
 import {
     AbortMultipartUploadCommand,
     CompleteMultipartUploadCommand,
@@ -21,12 +23,19 @@ export default class R2StorageProvider implements IStorageProvider {
 
     constructor() {
         this.r2Client = new S3Client({
-            region: "auto",
+            region: 'auto',
             endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
             credentials: {
                 accessKeyId: process.env.R2_ACCESS_KEY_ID!,
                 secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
             },
+            requestHandler: new NodeHttpHandler({
+                httpsAgent: new https.Agent({
+                    keepAlive: true,
+                    maxSockets: 100,
+                    maxFreeSockets: 20,
+                }),
+            }),
         });
     }
 

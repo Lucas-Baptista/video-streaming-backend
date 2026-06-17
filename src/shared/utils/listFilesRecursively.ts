@@ -3,6 +3,7 @@ import { readdir } from 'fs/promises';
 
 export default async function listFilesRecursively(
     dir: string,
+    startFrom?: string,
 ): Promise<string[]> {
 
     const entries = await readdir(
@@ -22,18 +23,23 @@ export default async function listFilesRecursively(
         );
 
         if (entry.isDirectory()) {
-
             files.push(
-                ...(await listFilesRecursively(
-                    fullPath,
-                )),
+                ...(await listFilesRecursively(fullPath)),
             );
-
-            continue;
+        } else {
+            files.push(fullPath);
         }
-
-        files.push(fullPath);
     }
 
-    return files;
+    files.sort();
+
+    if (!startFrom) {
+        return files;
+    }
+
+    const index = files.indexOf(startFrom);
+
+    return index === -1
+        ? files
+        : files.slice(index);
 }

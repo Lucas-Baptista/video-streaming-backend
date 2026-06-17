@@ -11,10 +11,11 @@ import AppDataSource from './shared/infra/typeorm/data-source';
   const processVideoService = new ProcessVideoService(
     videoRepository, 
     storageProvider, 
-    videoProcessingProvider
+    videoProcessingProvider,
+    queueProvider
   );
 
-  const worker = async () => {
+  const processVideoWorker = async () => {
     await queueProvider.consume(
       QUEUES.PROCESS_VIDEO,
       async (message) => {
@@ -23,7 +24,7 @@ import AppDataSource from './shared/infra/typeorm/data-source';
     );
   };
 
-  await worker();
+  await processVideoWorker();
 
-  console.log('Worker iniciado 🚀');
+  console.log('Process Video Worker iniciado 🚀');
 })();
